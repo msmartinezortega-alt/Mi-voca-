@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#7a1630" />
+  <link rel="manifest" href="manifest.json" />
+  <title>Mi Voca</title>
+  <style>
+    :root{
+      --bg:#f4f5f7;
+      --card:#ffffff;
+      --text:#1f2328;
+      --muted:#6b7280;
+      --accent:#7a1630;
+      --accent2:#a9274d;
+      --border:#e5e7eb;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    header{
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      color:white;
+      padding:28px 20px 22px;
+      border-radius:0 0 24px 24px;
+    }
+    header h1{margin:0;font-size:30px}
+    header p{margin:6px 0 0;opacity:.9}
+    main{max-width:760px;margin:auto;padding:18px}
+    .tabs{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
+      margin-bottom:16px;
+    }
+    .tabs button{
+      border:none;
+      padding:12px 8px;
+      border-radius:12px;
+      background:#e8eaee;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .tabs button.active{
+      background:var(--accent);
+      color:#fff;
+    }
+    .panel{display:none}
+    .panel.active{display:block}
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:16px;
+      margin-bottom:12px;
+      box-shadow:0 4px 14px rgba(0,0,0,.04);
+    }
+    h2{margin-top:0}
+    input,select,button.add{
+      width:100%;
+      padding:12px;
+      margin:6px 0;
+      border-radius:10px;
+      border:1px solid var(--border);
+      font-size:16px;
+    }
+    button.add{
+      background:var(--accent);
+      color:white;
+      border:none;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .item{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 0;
+      border-bottom:1px solid var(--border);
+    }
+    .item:last-child{border-bottom:none}
+    .small{font-size:13px;color:var(--muted)}
+    .done{text-decoration:line-through;opacity:.55}
+    .danger{
+      border:none;
+      background:#eee;
+      border-radius:8px;
+      padding:7px 10px;
+      cursor:pointer;
+    }
+    .avg{
+      font-size:36px;
+      font-weight:800;
+      color:var(--accent);
+    }
+    .day{font-weight:800;color:var(--accent)}
+    @media (prefers-color-scheme:dark){
+      :root{
+        --bg:#101114;
+        --card:#181a1f;
+        --text:#f3f4f6;
+        --muted:#a1a1aa;
+        --border:#2a2d34;
+      }
+      .tabs button{background:#262a31;color:#f3f4f6}
+      .danger{background:#2b2f36;color:#fff}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mi Voca</h1>
+    <p>Tu horario, tareas y calificaciones en un solo lugar.</p>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="active" data-tab="horario">Horario</button>
+      <button data-tab="tareas">Tareas</button>
+      <button data-tab="calificaciones">Calificaciones</button>
+    </div>
+
+    <section id="horario" class="panel active">
+      <div class="card">
+        <h2>Agregar clase</h2>
+        <select id="dia">
+          <option>Lunes</option><option>Martes</option><option>Miércoles</option>
+          <option>Jueves</option><option>Viernes</option>
+        </select>
+        <input id="materia" placeholder="Materia" />
+        <input id="hora" type="time" />
+        <button class="add" onclick="agregarClase()">Agregar</button>
+      </div>
+      <div class="card">
+        <h2>Mi horario</h2>
+        <div id="listaHorario"></div>
+      </div>
+    </section>
+
+    <section id="tareas" class="panel">
+      <div class="card">
+        <h2>Nueva tarea</h2>
+        <input id="tareaTexto" placeholder="¿Qué tienes que hacer?" />
+        <input id="tareaMateria" placeholder="Materia" />
+        <input id="tareaFecha" type="date" />
+        <button class="add" onclick="agregarTarea()">Guardar tarea</button>
+      </div>
+      <div class="card">
+        <h2>Pendientes</h2>
+        <div id="listaTareas"></div>
+      </div>
+    </section>
+
+    <section id="calificaciones" class="panel">
+      <div class="card">
+        <h2>Agregar calificación</h2>
+        <input id="calMateria" placeholder="Materia" />
+        <input id="calValor" type="number" min="0" max="10" step="0.1" placeholder="Calificación (0-10)" />
+        <button class="add" onclick="agregarCalificacion()">Guardar</button>
+      </div>
+      <div class="card">
+        <div class="small">Promedio general</div>
+        <div id="promedio" class="avg">—</div>
+        <div id="listaCalificaciones"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const data = JSON.parse(localStorage.getItem("miVocaData")) || {
+      horario: [], tareas: [], calificaciones: []
+    };
+
+    function guardar(){
+      localStorage.setItem("miVocaData", JSON.stringify(data));
+    }
+
+    document.querySelectorAll(".tabs button").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    function agregarClase(){
+      const dia = document.getElementById("dia").value;
+      const materia = document.getElementById("materia").value.trim();
+      const hora = document.getElementById("hora").value;
+      if(!materia || !hora) return;
+      data.horario.push({dia,materia,hora});
+      guardar(); renderHorario();
+      document.getElementById("materia").value="";
+      document.getElementById("hora").value="";
+    }
+
+    function renderHorario(){
+      const dias = ["Lunes","Martes","Miércoles","Jueves","Viernes"];
+      const cont = document.getElementById("listaHorario");
+      cont.innerHTML = "";
+      dias.forEach(dia=>{
+        const clases = data.horario.filter(x=>x.dia===dia).sort((a,b)=>a.hora.localeCompare(b.hora));
+        if(!clases.length) return;
+        cont.innerHTML += `<div class="day">${dia}</div>`;
+        clases.forEach(c=>{
+          const i = data.horario.indexOf(c);
+          cont.innerHTML += `<div class="item"><div><b>${c.materia}</b><div class="small">${c.hora}</div></div><button class="danger" onclick="borrarClase(${i})">✕</button></div>`;
+        });
+      });
+      if(!data.horario.length) cont.innerHTML='<div class="small">Aún no agregas clases.</div>';
+    }
+
+    function borrarClase(i){ data.horario.splice(i,1); guardar(); renderHorario(); }
+
+    function agregarTarea(){
+      const texto = document.getElementById("tareaTexto").value.trim();
+      const materia = document.getElementById("tareaMateria").value.trim();
+      const fecha = document.getElementById("tareaFecha").value;
+      if(!texto) return;
+      data.tareas.push({texto,materia,fecha,done:false});
+      guardar(); renderTareas();
+      document.getElementById("tareaTexto").value="";
+      document.getElementById("tareaMateria").value="";
+      document.getElementById("tareaFecha").value="";
+    }
+
+    function toggleTarea(i){ data.tareas[i].done=!data.tareas[i].done; guardar(); renderTareas(); }
+    function borrarTarea(i){ data.tareas.splice(i,1); guardar(); renderTareas(); }
+
+    function renderTareas(){
+      const cont = document.getElementById("listaTareas");
+      cont.innerHTML="";
+      data.tareas.forEach((t,i)=>{
+        cont.innerHTML += `<div class="item">
+          <div class="${t.done?'done':''}" onclick="toggleTarea(${i})" style="cursor:pointer">
+            <b>${t.texto}</b>
+            <div class="small">${t.materia || "Sin materia"}${t.fecha ? " · "+t.fecha : ""}</div>
+          </div>
+          <button class="danger" onclick="borrarTarea(${i})">✕</button>
+        </div>`;
+      });
+      if(!data.tareas.length) cont.innerHTML='<div class="small">No tienes tareas guardadas.</div>';
+    }
+
+    function agregarCalificacion(){
+      const materia = document.getElementById("calMateria").value.trim();
+      const valor = parseFloat(document.getElementById("calValor").value);
+      if(!materia || isNaN(valor) || valor<0 || valor>10) return;
+      data.calificaciones.push({materia,valor});
+      guardar(); renderCalificaciones();
+      document.getElementById("calMateria").value="";
+      document.getElementById("calValor").value="";
+    }
+
+    function borrarCalificacion(i){ data.calificaciones.splice(i,1); guardar(); renderCalificaciones(); }
+
+    function renderCalificaciones(){
+      const cont = document.getElementById("listaCalificaciones");
+      cont.innerHTML="";
+      data.calificaciones.forEach((c,i)=>{
+        cont.innerHTML += `<div class="item"><div><b>${c.materia}</b><div class="small">${c.valor.toFixed(1)}</div></div><button class="danger" onclick="borrarCalificacion(${i})">✕</button></div>`;
+      });
+      const avg = data.calificaciones.length
+        ? data.calificaciones.reduce((a,c)=>a+c.valor,0)/data.calificaciones.length
+        : null;
+      document.getElementById("promedio").textContent = avg===null ? "—" : avg.toFixed(2);
+      if(!data.calificaciones.length) cont.innerHTML='<div class="small">No hay calificaciones todavía.</div>';
+    }
+
+    renderHorario();
+    renderTareas();
+    renderCalificaciones();
+
+    if("serviceWorker" in navigator){
+      navigator.serviceWorker.register("service-worker.js");
+    }
+  </script>
+</body>
+</html>
